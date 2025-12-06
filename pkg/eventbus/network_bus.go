@@ -23,7 +23,7 @@ type NetworkBus struct {
 // NewNetworkBus - returns a new network bus object at the server address and path
 func NewNetworkBus(address, path string) *NetworkBus {
 	bus := new(NetworkBus)
-	bus.sharedBus = New()
+	bus.sharedBus = NewEventBus()
 	bus.Server = NewServer(address, path, bus.sharedBus)
 	bus.Client = NewClient(address, path, bus.sharedBus)
 	bus.service = &NetworkBusService{&sync.WaitGroup{}, false}
