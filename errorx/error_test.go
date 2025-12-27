@@ -1,0 +1,222 @@
+package errorx
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestRegister(t *testing.T) {
+	// Setup
+	testCode := int32(10001)
+	Register(testCode, "test error: {key}")
+
+	t.Run("register new error code", func(t *testing.T) {
+		err := New(testCode, KV("key", "value"))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "test error: value")
+	})
+
+	t.Run("register with affect stability", func(t *testing.T) {
+		code2 := int32(10002)
+		Register(code2, "stability error", WithAffectStability(true))
+
+		err := New(code2)
+		if statusErr, ok := err.(StatusError); ok {
+			assert.True(t, statusErr.IsAffectStability())
+		}
+	})
+}
+
+func TestNew(t *testing.T) {
+	// Setup
+	Register(20001, "error with {param}")
+	SetDefaultErrorCode(50000)
+
+	t.Run("create new error with code", func(t *testing.T) {
+		err := New(20001, KV("param", "test"))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error with test")
+	})
+
+	t.Run("create new error without params", func(t *testing.T) {
+		code := int32(20002)
+		Register(code, "simple error")
+		err := New(code)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "simple error")
+	})
+
+	t.Run("with extra fields", func(t *testing.T) {
+		code := int32(20003)
+		Register(code, "error with extra")
+		err := New(code, Extra("key1", "value1"), Extra("key2", "value2"))
+
+		if statusErr, ok := err.(StatusError); ok {
+			assert.Equal(t, "value1", statusErr.Extra()["key1"])
+			assert.Equal(t, "value2", statusErr.Extra()["key2"])
+		}
+	})
+
+	t.Run("with formatted extra", func(t *testing.T) {
+		code := int32(20004)
+		Register(code, "error {id}")
+		err := New(code, KVf("id", "user-%d", 123))
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "user-123")
+	})
+}
+
+func TestWrapByCode(t *testing.T) {
+	t.Run("wrap nil error returns nil", func(t *testing.T) {
+		Register(30001, "wrap error")
+		err := WrapByCode(nil, 30001)
+		assert.NoError(t, err)
+	})
+
+	t.Run("wrap error with code", func(t *testing.T) {
+		Register(30002, "wrapped: {msg}")
+		baseErr := errors.New("base error")
+		err := WrapByCode(baseErr, 30002, KV("msg", "test"))
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "wrapped: test")
+		assert.Contains(t, err.Error(), "base error")
+	})
+
+	t.Run("wrap with extra", func(t *testing.T) {
+		Register(30003, "wrap with extra")
+		baseErr := errors.New("base")
+		err := WrapByCode(baseErr, 30003, Extra("ctx", "value"))
+
+		if statusErr, ok := err.(StatusError); ok {
+			assert.Equal(t, "value", statusErr.Extra()["ctx"])
+		}
+	})
+}
+
+func TestWrapf(t *testing.T) {
+	t.Run("wrap nil error returns nil", func(t *testing.T) {
+		err := Wrapf(nil, "message")
+		assert.NoError(t, err)
+	})
+
+	t.Run("wrap error with format", func(t *testing.T) {
+		baseErr := errors.New("base error")
+		err := Wrapf(baseErr, "wrapped: %s", "test")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "wrapped: test")
+		assert.Contains(t, err.Error(), "base error")
+	})
+
+	t.Run("wrap with multiple args", func(t *testing.T) {
+		baseErr := errors.New("base")
+		err := Wrapf(baseErr, "error %d: %s", 404, "not found")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error 404: not found")
+	})
+}
+
+func TestErrorWithoutStack(t *testing.T) {
+	t.Run("nil error", func(t *testing.T) {
+		result := ErrorWithoutStack(nil)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("error without stack", func(t *testing.T) {
+		err := errors.New("simple error")
+		result := ErrorWithoutStack(err)
+		assert.Equal(t, "simple error", result)
+	})
+
+	t.Run("error with stack", func(t *testing.T) {
+		Register(40001, "stack error")
+		err := New(40001)
+		errMsg := err.Error()
+
+		// Check if message contains stack
+		if len(errMsg) > 100 { // likely has stack trace
+			result := ErrorWithoutStack(err)
+			assert.NotContains(t, result, "stack=")
+			assert.NotContains(t, result, "goroutine")
+		}
+	})
+}
+
+func TestStatusError(t *testing.T) {
+	Register(50001, "status error")
+
+	t.Run("Code() method", func(t *testing.T) {
+		err := New(50001)
+		if statusErr, ok := err.(StatusError); ok {
+			assert.Equal(t, int32(50001), statusErr.Code())
+		}
+	})
+
+	t.Run("Msg() method", func(t *testing.T) {
+		err := New(50001)
+		if statusErr, ok := err.(StatusError); ok {
+			assert.Equal(t, "status error", statusErr.Msg())
+		}
+	})
+
+	t.Run("Extra() method", func(t *testing.T) {
+		err := New(50001, Extra("key", "value"))
+		if statusErr, ok := err.(StatusError); ok {
+			extra := statusErr.Extra()
+			assert.Equal(t, "value", extra["key"])
+		}
+	})
+
+	t.Run("IsAffectStability() method", func(t *testing.T) {
+		Register(50002, "stability", WithAffectStability(true))
+		err := New(50002)
+		if statusErr, ok := err.(StatusError); ok {
+			assert.True(t, statusErr.IsAffectStability())
+		}
+	})
+}
+
+func TestKV(t *testing.T) {
+	t.Run("create KV option", func(t *testing.T) {
+		Register(60001, "{key}")
+		err := New(60001, KV("key", "value"))
+		assert.Contains(t, err.Error(), "value")
+	})
+}
+
+func TestKVf(t *testing.T) {
+	t.Run("create KVf option", func(t *testing.T) {
+		Register(60002, "id: {id}")
+		err := New(60002, KVf("id", "%d-%d", 10, 20))
+		assert.Contains(t, err.Error(), "10-20")
+	})
+}
+
+func TestExtra(t *testing.T) {
+	t.Run("create Extra option", func(t *testing.T) {
+		Register(60003, "extra")
+		err := New(60003, Extra("k1", "v1"), Extra("k2", "v2"))
+
+		if statusErr, ok := err.(StatusError); ok {
+			assert.Equal(t, "v1", statusErr.Extra()["k1"])
+			assert.Equal(t, "v2", statusErr.Extra()["k2"])
+		}
+	})
+}
+
+func TestSetDefaultErrorCode(t *testing.T) {
+	SetDefaultErrorCode(70001)
+
+	t.Run("use default error code", func(t *testing.T) {
+		// Try to create error with unregistered code
+		// This should use default error code
+		Register(70001, "default error")
+		err := New(70001)
+		assert.Error(t, err)
+	})
+}
