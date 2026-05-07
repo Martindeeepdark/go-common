@@ -2,8 +2,11 @@ package logs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
+	"syscall"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -250,10 +253,30 @@ func (z *zapLogger) SetOutput(output interface{}) {
 func Sync() error {
 	if globalLogger != nil {
 		if z, ok := globalLogger.(*zapLogger); ok {
-			return z.logger.Sync()
+			if err := z.logger.Sync(); err != nil {
+				if isIgnorableSyncError(err) {
+					return nil
+				}
+				return err
+			}
+			return nil
 		}
 	}
 	return nil
+}
+
+func isIgnorableSyncError(err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, syscall.EINVAL) {
+		return true
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "invalid argument") {
+		return true
+	}
+	return false
 }
 
 // Helper functions for quick access
