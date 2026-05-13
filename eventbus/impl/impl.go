@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"common/eventbus"
+	"github.com/Martindeeepdark/go-common/eventbus"
 )
 
 const (

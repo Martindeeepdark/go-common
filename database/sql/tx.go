@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"common/database/defs"
+	"github.com/Martindeeepdark/go-common/database/defs"
 )
 
 var (

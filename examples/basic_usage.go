@@ -1,14 +1,14 @@
 package main
 
 import (
-	"common/config"
-	"common/errorx"
-	"common/eventbus"
-	"common/lang/conv"
-	"common/lang/ptr"
-	"common/lang/slices"
-	"common/logs"
-	"common/taskgroup"
+	"github.com/Martindeeepdark/go-common/config"
+	"github.com/Martindeeepdark/go-common/errorx"
+	"github.com/Martindeeepdark/go-common/eventbus"
+	"github.com/Martindeeepdark/go-common/lang/conv"
+	"github.com/Martindeeepdark/go-common/lang/ptr"
+	"github.com/Martindeeepdark/go-common/lang/slices"
+	"github.com/Martindeeepdark/go-common/logs"
+	"github.com/Martindeeepdark/go-common/taskgroup"
 	"context"
 	"errors"
 	"fmt"

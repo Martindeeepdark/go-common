@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"common/cache/defs"
+	"github.com/Martindeeepdark/go-common/cache/defs"
 )
 
 func (c *Client) Stats(ctx context.Context) (*defs.CacheStats, error) {

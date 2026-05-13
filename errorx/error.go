@@ -3,7 +3,7 @@ package errorx
 import (
 	"strings"
 
-	"common/errorx/internal"
+	"github.com/Martindeeepdark/go-common/errorx/internal"
 )
 
 // StatusError is an interface for error with status code, you can

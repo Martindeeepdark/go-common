@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"common/trace/defs"
+	"github.com/Martindeeepdark/go-common/trace/defs"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"

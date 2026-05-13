@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"common/cache/defs"
+	"github.com/Martindeeepdark/go-common/cache/defs"
 
 	goredis "github.com/redis/go-redis/v9"
 )
