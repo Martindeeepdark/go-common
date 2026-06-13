@@ -3,6 +3,8 @@ module github.com/Martindeeepdark/go-common
 go 1.24.0
 
 require (
+	github.com/alicebob/miniredis/v2 v2.38.0
+	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/sony/sonyflake v1.3.0
 	github.com/stretchr/testify v1.11.1
@@ -23,6 +25,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.41.0 // indirect
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
