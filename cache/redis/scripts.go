@@ -14,4 +14,10 @@ var (
 
 	//go:embed scripts/check_limit.lua
 	checkLimitSrc string
+
+	//go:embed scripts/deduct_stock_order.lua
+	deductStockOrderSrc string
+
+	//go:embed scripts/release_stock_order.lua
+	releaseStockOrderSrc string
 )

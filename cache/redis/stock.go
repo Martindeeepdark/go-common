@@ -8,13 +8,16 @@ import (
 )
 
 var (
-	deductStockScript = goredis.NewScript(deductStockSrc)
-	checkLimitScript  = goredis.NewScript(checkLimitSrc)
+	deductStockScript       = goredis.NewScript(deductStockSrc)
+	checkLimitScript        = goredis.NewScript(checkLimitSrc)
+	deductStockOrderScript  = goredis.NewScript(deductStockOrderSrc)
+	releaseStockOrderScript = goredis.NewScript(releaseStockOrderSrc)
 )
 
 const (
-	stockResultKeyMissing   int64 = -1
-	stockResultInsufficient int64 = -2
+	stockResultKeyMissing     int64 = -1
+	stockResultInsufficient   int64 = -2
+	stockResultAlreadyReserved int64 = -3
 )
 
 // DeductStock atomically checks and deducts stock for a given key.
@@ -63,4 +66,32 @@ func (c *Client) RollbackLimit(ctx context.Context, key string, quantity int64) 
 		return fmt.Errorf("cache rollback_limit %s: %w", key, err)
 	}
 	return nil
+}
+
+// DeductStockOrder atomically deducts stock and records the order reservation.
+// Returns the remaining stock after deduction. Idempotent for the same orderNo.
+func (c *Client) DeductStockOrder(ctx context.Context, stockKey, reservedKey, orderNo string, quantity int64) (int64, error) {
+	result, err := deductStockOrderScript.Run(ctx, c.rdb, []string{stockKey, reservedKey}, quantity, orderNo).Int64()
+	if err != nil {
+		return 0, fmt.Errorf("cache deduct_stock_order %s: %w", stockKey, err)
+	}
+	switch result {
+	case stockResultKeyMissing:
+		return 0, fmt.Errorf("cache deduct_stock_order %s: key not found", stockKey)
+	case stockResultInsufficient:
+		return 0, fmt.Errorf("cache deduct_stock_order %s: insufficient stock", stockKey)
+	case stockResultAlreadyReserved:
+		return result, nil
+	}
+	return result, nil
+}
+
+// ReleaseStockOrder atomically releases stock for a specific order.
+// Idempotent: returns 0 without side effects if the order was not reserved or already released.
+func (c *Client) ReleaseStockOrder(ctx context.Context, stockKey, reservedKey, orderNo string, quantity int64) (int64, error) {
+	result, err := releaseStockOrderScript.Run(ctx, c.rdb, []string{stockKey, reservedKey}, quantity, orderNo).Int64()
+	if err != nil {
+		return 0, fmt.Errorf("cache release_stock_order %s: %w", stockKey, err)
+	}
+	return result, nil
 }
