@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"syscall"
@@ -379,4 +380,70 @@ func CtxErrorf(ctx context.Context, format string, v ...interface{}) {
 
 func CtxFatalf(ctx context.Context, format string, v ...interface{}) {
 	L().CtxFatalf(ctx, format, v...)
+}
+
+// GetSlogLogger 返回一个 *slog.Logger 用于向后兼容
+// 这是一个适配层，底层仍使用 zap，但提供 slog 接口给需要的基础设施代码
+func GetSlogLogger() *slog.Logger {
+	if globalLogger == nil {
+		_ = Init(LevelInfo)
+	}
+
+	z, ok := globalLogger.(*zapLogger)
+	if !ok {
+		// 降级：返回默认 slog logger
+		return slog.Default()
+	}
+
+	// 创建 slog.Handler 适配器包装 zap
+	handler := &zapSlogHandler{sugar: z.sugar}
+	return slog.New(handler)
+}
+
+// zapSlogHandler 是 slog.Handler 的实现，底层使用 zap SugaredLogger
+type zapSlogHandler struct {
+	sugar *zap.SugaredLogger
+}
+
+func (h *zapSlogHandler) Enabled(_ context.Context, level slog.Level) bool {
+	// 始终返回 true，让 zap 的 level 控制来决定
+	return true
+}
+
+func (h *zapSlogHandler) Handle(_ context.Context, record slog.Record) error {
+	// 收集所有 attributes
+	var args []interface{}
+	record.Attrs(func(attr slog.Attr) bool {
+		args = append(args, attr.Key, attr.Value.Any())
+		return true
+	})
+
+	// 根据 level 调用对应的 zap 方法
+	switch record.Level {
+	case slog.LevelDebug:
+		h.sugar.Debugw(record.Message, args...)
+	case slog.LevelInfo:
+		h.sugar.Infow(record.Message, args...)
+	case slog.LevelWarn:
+		h.sugar.Warnw(record.Message, args...)
+	case slog.LevelError:
+		h.sugar.Errorw(record.Message, args...)
+	default:
+		h.sugar.Infow(record.Message, args...)
+	}
+	return nil
+}
+
+func (h *zapSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	// 将 attrs 转换为 zap fields
+	var args []interface{}
+	for _, attr := range attrs {
+		args = append(args, attr.Key, attr.Value.Any())
+	}
+	return &zapSlogHandler{sugar: h.sugar.With(args...)}
+}
+
+func (h *zapSlogHandler) WithGroup(name string) slog.Handler {
+	// zap 不直接支持 group，简单实现：将 group name 作为前缀
+	return &zapSlogHandler{sugar: h.sugar.Named(name)}
 }
