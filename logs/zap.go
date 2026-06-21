@@ -203,39 +203,55 @@ func (z *zapLogger) Fatalf(format string, v ...interface{}) {
 	z.sugar.Fatalf(format, v...)
 }
 
+// withTraceID 从 context 中提取 traceId 并返回带 traceId 字段的 logger
+// 如果 context 为 nil 或没有 traceId，返回原 logger
+func (z *zapLogger) withTraceID(ctx context.Context) *zap.SugaredLogger {
+	if ctx == nil {
+		return z.sugar
+	}
+
+	traceID := TraceID(ctx)
+	if traceID == "" {
+		return z.sugar
+	}
+
+	// 返回带 traceId 字段的子 logger
+	return z.sugar.With("traceId", traceID)
+}
+
 // CtxTracef logs a formatted message with context at TraceLevel
 func (z *zapLogger) CtxTracef(ctx context.Context, format string, v ...interface{}) {
-	z.sugar.Debugf(format, v...)
+	z.withTraceID(ctx).Debugf(format, v...)
 }
 
 // CtxDebugf logs a formatted message with context at DebugLevel
 func (z *zapLogger) CtxDebugf(ctx context.Context, format string, v ...interface{}) {
-	z.sugar.Debugf(format, v...)
+	z.withTraceID(ctx).Debugf(format, v...)
 }
 
 // CtxInfof logs a formatted message with context at InfoLevel
 func (z *zapLogger) CtxInfof(ctx context.Context, format string, v ...interface{}) {
-	z.sugar.Infof(format, v...)
+	z.withTraceID(ctx).Infof(format, v...)
 }
 
 // CtxNoticef logs a formatted message with context at NoticeLevel
 func (z *zapLogger) CtxNoticef(ctx context.Context, format string, v ...interface{}) {
-	z.sugar.Warnf(format, v...)
+	z.withTraceID(ctx).Warnf(format, v...)
 }
 
 // CtxWarnf logs a formatted message with context at WarnLevel
 func (z *zapLogger) CtxWarnf(ctx context.Context, format string, v ...interface{}) {
-	z.sugar.Warnf(format, v...)
+	z.withTraceID(ctx).Warnf(format, v...)
 }
 
 // CtxErrorf logs a formatted message with context at ErrorLevel
 func (z *zapLogger) CtxErrorf(ctx context.Context, format string, v ...interface{}) {
-	z.sugar.Errorf(format, v...)
+	z.withTraceID(ctx).Errorf(format, v...)
 }
 
 // CtxFatalf logs a formatted message with context at FatalLevel and exits
 func (z *zapLogger) CtxFatalf(ctx context.Context, format string, v ...interface{}) {
-	z.sugar.Fatalf(format, v...)
+	z.withTraceID(ctx).Fatalf(format, v...)
 }
 
 // SetLevel sets the logging level
